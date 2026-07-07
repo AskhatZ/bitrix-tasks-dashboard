@@ -152,11 +152,6 @@
           <option value="tasks_asc">По кол-ву заданий ↑</option>
           <option value="name_asc">По имени А→Я</option>
         </select>
-        <label class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-700 transition border border-gray-200 dark:border-gray-600" title="Показать шаблон задания (маскировать конкретные данные)">
-          <input type="checkbox" id="templateMode" onchange="if(dashboardData)renderEmployees(dashboardData.employees)" class="rounded border-gray-300 text-ft-600 focus:ring-ft-500" />
-          <span class="text-gray-700 dark:text-gray-300 font-medium">Шаблон</span>
-          <span class="text-gray-400">████</span>
-        </label>
         <button onclick="exportCSV()" class="px-3 py-2 bg-ft-700 text-white rounded-lg text-sm font-medium hover:bg-ft-600 transition" title="Экспорт в CSV">
           CSV ↓
         </button>
@@ -213,33 +208,6 @@
       html = html.replace(/\[size=(.*?)\](.*?)\[\/size\]/gis, '$2');
       html = html.replace(/\n/g, '<br>');
       return html;
-    }
-
-    function maskData(text) {
-      if (!text) return '';
-      const BLOCK = '████████';
-      const SHORT = '████';
-      let masked = text;
-      masked = masked.replace(/\[url=(.*?)\](.*?)\[\/url\]/gi, (_, url, label) => {
-        return `[url=${url}]${SHORT}[/url]`;
-      });
-      masked = masked.replace(/(Контакт:\s*).+/gi, '$1' + BLOCK);
-      masked = masked.replace(/(Компания:\s*).+/gi, '$1' + BLOCK);
-      masked = masked.replace(/(Сделка:\s*).+/gi, '$1' + BLOCK);
-      masked = masked.replace(/(Лид:\s*).+/gi, '$1' + BLOCK);
-      masked = masked.replace(/(Адрес[\s·\-:]*).+/gi, '$1' + BLOCK);
-      masked = masked.replace(/(Клиент:\s*).+/gi, '$1' + BLOCK);
-      masked = masked.replace(/(Телефон:\s*).+/gi, '$1' + SHORT);
-      masked = masked.replace(/(Email:\s*).+/gi, '$1' + SHORT);
-      masked = masked.replace(/(Ответственный:\s*).+/gi, '$1' + BLOCK);
-      masked = masked.replace(/(Договор[:\s]*).+/gi, '$1' + BLOCK);
-      masked = masked.replace(/(Номер[:\s]*)\S+/gi, '$1' + SHORT);
-      return masked;
-    }
-
-    function maskDate(dateStr) {
-      if (!dateStr) return '—';
-      return '██.██.████, ██:██';
     }
 
     function getFieldTypeLabel(type) {
@@ -746,28 +714,23 @@
     }
 
     function renderEmployee(emp) {
-      const tplMode = document.getElementById('templateMode')?.checked || false;
       const { user, tasks, tasksCount } = emp;
       const countColor = tasksCount > 20 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
                          tasksCount > 5 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
                          tasksCount === 0 ? 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' :
                          'bg-ft-100 text-ft-700 dark:bg-ft-900/30 dark:text-ft-400';
 
-      const displayName = tplMode ? '████████ ████████' : user.name;
-      const initials = tplMode ? '██' : user.name.split(' ').map(w => w[0]).join('').slice(0, 2);
-      const position = tplMode ? '████████████' : (user.position || user.departments.join(', '));
-
       return `
-        <div class="bg-white dark:bg-gray-800 rounded-xl border ${tplMode ? 'border-dashed border-gray-300 dark:border-gray-600' : 'border-gray-200 dark:border-gray-700'} overflow-hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div class="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750"
                onclick="toggleEmployee(this)">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full ${tplMode ? 'bg-gray-200 dark:bg-gray-700' : 'bg-ft-100 dark:bg-ft-900/40'} flex items-center justify-center ${tplMode ? 'text-gray-500' : 'text-ft-700 dark:text-ft-400'} font-bold text-sm">
-                ${initials}
+              <div class="w-10 h-10 rounded-full bg-ft-100 dark:bg-ft-900/40 flex items-center justify-center text-ft-700 dark:text-ft-400 font-bold text-sm">
+                ${user.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
               </div>
               <div>
-                <div class="font-semibold text-gray-900 dark:text-white">${displayName}</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">${position}</div>
+                <div class="font-semibold text-gray-900 dark:text-white">${user.name}</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">${user.position || user.departments.join(', ')}</div>
               </div>
             </div>
             <div class="flex items-center gap-3">
@@ -787,40 +750,32 @@
     }
 
     function renderTask(task) {
-      const tplMode = document.getElementById('templateMode')?.checked || false;
       const visibleFields = task.fields.filter(f => !isExcludedField(f));
       const visibleButtons = task.buttons.filter(b => !isExcludedButton(b));
       const docUrl = task.documentUrl ? (task.documentUrl.startsWith('http') ? task.documentUrl : bitrixUrl + task.documentUrl) : '';
       const age = getTaskAge(task);
       const ageColor = age && age > 7*24*3600000 ? 'text-red-600' : age && age > 3*24*3600000 ? 'text-amber-600' : 'text-gray-500';
 
-      const desc = tplMode ? maskData(task.description) : task.description;
-      const docName = tplMode ? (task.documentName ? '████████' : '') : task.documentName;
-      const startDate = tplMode ? (task.workflowStarted ? maskDate() : '') : formatDate(task.workflowStarted);
-      const deadlineDate = tplMode ? (task.overdueDate ? maskDate() : '') : formatDate(task.overdueDate);
-      const ageDisplay = tplMode ? '██ д. ██ ч.' : (age !== null ? formatDuration(age) : '');
-
       return `
-        <div class="task-card ${tplMode ? 'bg-gray-100 dark:bg-gray-900 border-dashed' : 'bg-gray-50 dark:bg-gray-900/50'} rounded-lg p-4 border border-gray-200 dark:border-gray-700 ${tplMode ? 'relative' : ''}">
-          ${tplMode ? '<div class="absolute top-2 right-2 badge bg-gray-700 dark:bg-gray-600 text-white text-[10px]">ШАБЛОН</div>' : ''}
+        <div class="task-card bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <div class="flex items-start justify-between mb-1">
             <div class="font-medium text-sm text-gray-900 dark:text-white">${task.name}</div>
-            ${!tplMode && docUrl ? `<a href="${docUrl}" target="_blank" class="ml-2 shrink-0 text-ft-600 dark:text-ft-400 hover:text-ft-700" title="Открыть документ в Bitrix24">
+            ${docUrl ? `<a href="${docUrl}" target="_blank" class="ml-2 shrink-0 text-ft-600 dark:text-ft-400 hover:text-ft-700" title="Открыть документ в Bitrix24">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
             </a>` : ''}
           </div>
 
           <!-- Время -->
           <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-2">
-            ${task.workflowStarted ? `<span class="text-gray-500">Старт: <span class="font-medium">${startDate}</span></span>` : ''}
-            ${age !== null || tplMode ? `<span class="${tplMode ? 'text-gray-500' : ageColor}">В работе: <span class="font-medium">${ageDisplay}</span></span>` : ''}
-            ${task.overdueDate ? `<span class="${tplMode ? 'text-gray-500' : 'text-red-600'}">Дедлайн: <span class="font-medium">${deadlineDate}</span></span>` : ''}
+            ${task.workflowStarted ? `<span class="text-gray-500">Старт: <span class="font-medium">${formatDate(task.workflowStarted)}</span></span>` : ''}
+            ${age !== null ? `<span class="${ageColor}">В работе: <span class="font-medium">${formatDuration(age)}</span></span>` : ''}
+            ${task.overdueDate ? `<span class="text-red-600">Дедлайн: <span class="font-medium">${formatDate(task.overdueDate)}</span></span>` : ''}
           </div>
 
-          ${desc ? `<div class="text-xs text-gray-600 dark:text-gray-300 mb-2 leading-relaxed">${parseBBCode(desc)}</div>` : ''}
+          ${task.description ? `<div class="text-xs text-gray-600 dark:text-gray-300 mb-2 leading-relaxed">${parseBBCode(task.description)}</div>` : ''}
           <div class="text-xs text-gray-400 dark:text-gray-500 mb-2">
             <span class="font-medium text-gray-600 dark:text-gray-300">${task.templateName || ''}</span>
-            ${docName ? ` • ${tplMode ? `<span class="text-gray-400">${docName}</span>` : `<a href="${docUrl}" target="_blank" class="text-ft-600 dark:text-ft-400 hover:underline">${docName}</a>`}` : ''}
+            ${task.documentName ? ` • <a href="${docUrl}" target="_blank" class="text-ft-600 dark:text-ft-400 hover:underline">${task.documentName}</a>` : ''}
           </div>
           ${visibleFields.length > 0 ? `
             <div class="mb-2 border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
