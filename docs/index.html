@@ -18,6 +18,33 @@
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
+  <!-- Login Screen -->
+  <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
+      <div class="text-center mb-6">
+        <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+        </div>
+        <h2 class="text-xl font-bold text-gray-900">Дашборд БП</h2>
+        <p class="text-sm text-gray-500 mt-1">Введите пароль для доступа</p>
+      </div>
+      <form onsubmit="handleLogin(event)">
+        <input type="password" id="loginPassword" placeholder="Пароль"
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-center text-lg tracking-widest"
+          autocomplete="current-password" />
+        <p id="loginError" class="text-red-500 text-sm mt-2 hidden text-center"></p>
+        <button type="submit" id="loginBtn"
+          class="w-full mt-4 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50">
+          Войти
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main App (hidden until auth) -->
+  <div id="mainApp" class="hidden">
   <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
       <div>
@@ -32,6 +59,12 @@
         <button onclick="loadData(true)" id="refreshBtn"
           class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50">
           Обновить
+        </button>
+        <button onclick="logout()" title="Выйти"
+          class="p-2 text-gray-400 hover:text-red-500 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
         </button>
       </div>
     </div>
@@ -539,8 +572,11 @@
       btn.disabled = true;
 
       try {
-        
-        const res = await fetch(API_URL);
+        const token = getAuthToken();
+        const res = await fetch(API_URL, {
+          headers: token ? { 'X-Auth-Token': token } : {}
+        });
+        if (res.status === 401 || res.status === 403) { logout(); return; }
         if (!res.ok) throw new Error(`Ошибка ${res.status}: ${await res.text()}`);
         dashboardData = await res.json();
         bitrixUrl = dashboardData.bitrixUrl || '';
@@ -794,8 +830,75 @@
       if (dashboardData) renderEmployees(dashboardData.employees);
     });
 
-    loadData();
-    startAutoRefresh();
+    // --- Auth ---
+    const AUTH_KEY_STORAGE = 'bp_dashboard_auth';
+
+    function getAuthToken() {
+      return sessionStorage.getItem(AUTH_KEY_STORAGE) || '';
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const pwd = document.getElementById('loginPassword').value.trim();
+      const errEl = document.getElementById('loginError');
+      const btn = document.getElementById('loginBtn');
+
+      if (!pwd) {
+        errEl.textContent = 'Введите пароль';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      errEl.classList.add('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Проверка...';
+
+      sessionStorage.setItem(AUTH_KEY_STORAGE, pwd);
+
+      fetch(API_URL, { headers: { 'X-Auth-Token': pwd } })
+        .then(res => {
+          if (res.status === 401 || res.status === 403) {
+            throw new Error('Неверный пароль');
+          }
+          if (!res.ok) throw new Error(`Ошибка сервера: ${res.status}`);
+          return res.json();
+        })
+        .then(data => {
+          dashboardData = data;
+          bitrixUrl = data.bitrixUrl || '';
+          smartProcesses = data.smartProcesses || {};
+          showMainApp();
+          renderAll();
+          startAutoRefresh();
+        })
+        .catch(err => {
+          sessionStorage.removeItem(AUTH_KEY_STORAGE);
+          errEl.textContent = err.message;
+          errEl.classList.remove('hidden');
+        })
+        .finally(() => {
+          btn.disabled = false;
+          btn.textContent = 'Войти';
+        });
+    }
+
+    function showMainApp() {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('mainApp').classList.remove('hidden');
+    }
+
+    function logout() {
+      sessionStorage.removeItem(AUTH_KEY_STORAGE);
+      location.reload();
+    }
+
+    // Auto-login if token exists in session
+    if (getAuthToken()) {
+      showMainApp();
+      loadData();
+      startAutoRefresh();
+    }
   </script>
+  </div><!-- /mainApp -->
 </body>
 </html>
