@@ -705,7 +705,12 @@
         const res = await fetch(API_URL, {
           headers: token ? { 'X-Auth-Token': token } : {}
         });
-        if (res.status === 401 || res.status === 403) { logout(); return; }
+        if (res.status === 401 || res.status === 403) {
+          sessionStorage.removeItem(AUTH_KEY_STORAGE);
+          sessionStorage.setItem('bp_login_error', 'Неверный пароль');
+          location.reload();
+          return;
+        }
         if (!res.ok) throw new Error(`Ошибка ${res.status}: ${await res.text()}`);
         dashboardData = await res.json();
         bitrixUrl = dashboardData.bitrixUrl || '';
@@ -985,7 +990,6 @@
       e.preventDefault();
       const pwd = document.getElementById('loginPassword').value.trim();
       const errEl = document.getElementById('loginError');
-      const btn = document.getElementById('loginBtn');
 
       if (!pwd) {
         errEl.textContent = 'Введите пароль';
@@ -994,36 +998,10 @@
       }
 
       errEl.classList.add('hidden');
-      btn.disabled = true;
-      btn.textContent = 'Проверка...';
-
       sessionStorage.setItem(AUTH_KEY_STORAGE, pwd);
-
-      fetch(API_URL, { headers: { 'X-Auth-Token': pwd } })
-        .then(res => {
-          if (res.status === 401 || res.status === 403) {
-            throw new Error('Неверный пароль');
-          }
-          if (!res.ok) throw new Error(`Ошибка сервера: ${res.status}`);
-          return res.json();
-        })
-        .then(data => {
-          dashboardData = data;
-          bitrixUrl = data.bitrixUrl || '';
-          smartProcesses = data.smartProcesses || {};
-          showMainApp();
-          renderAll();
-          startAutoRefresh();
-        })
-        .catch(err => {
-          sessionStorage.removeItem(AUTH_KEY_STORAGE);
-          errEl.textContent = err.message;
-          errEl.classList.remove('hidden');
-        })
-        .finally(() => {
-          btn.disabled = false;
-          btn.textContent = 'Войти';
-        });
+      showMainApp();
+      loadData();
+      startAutoRefresh();
     }
 
     function showMainApp() {
@@ -1035,6 +1013,17 @@
       sessionStorage.removeItem(AUTH_KEY_STORAGE);
       location.reload();
     }
+
+    // Show login error if redirected after wrong password
+    (function checkLoginError() {
+      const err = sessionStorage.getItem('bp_login_error');
+      if (err) {
+        sessionStorage.removeItem('bp_login_error');
+        const errEl = document.getElementById('loginError');
+        errEl.textContent = err;
+        errEl.classList.remove('hidden');
+      }
+    })();
 
     // Auto-login if token exists in session
     if (getAuthToken()) {
