@@ -702,9 +702,8 @@
 
       try {
         const token = getAuthToken();
-        const res = await fetch(API_URL, {
-          headers: token ? { 'X-Auth-Token': token } : {}
-        });
+        const url = token ? `${API_URL}?token=${encodeURIComponent(token)}` : API_URL;
+        const res = await fetch(url);
         if (res.status === 401 || res.status === 403) {
           sessionStorage.removeItem(AUTH_KEY_STORAGE);
           sessionStorage.setItem('bp_login_error', 'Неверный пароль');
