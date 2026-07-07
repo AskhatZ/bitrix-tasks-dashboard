@@ -193,6 +193,54 @@
       }
     }
 
+    function maskDescription(text, task) {
+      if (!text) return '';
+      const docUrl = task?.documentUrl || '';
+      const lines = text.split('\n');
+      const result = [];
+      let firstContentLine = true;
+
+      for (let line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) { result.push(line); continue; }
+
+        if (firstContentLine && !trimmed.match(/^(Контакт|Компания|Сделка|Лид|Клиент|Телефон|Email|Ответственный|Договор|Номер)\s*:/i)) {
+          result.push(line);
+          firstContentLine = false;
+          continue;
+        }
+        firstContentLine = false;
+
+        const colonIdx = trimmed.indexOf(':');
+        if (colonIdx > 0 && colonIdx < 30) {
+          const label = trimmed.substring(0, colonIdx + 1);
+          result.push(label + ' ████████');
+          continue;
+        }
+
+        result.push(line);
+      }
+
+      let masked = result.join('\n');
+
+      masked = masked.replace(/\[url=(.*?)\](.*?)\[\/url\]/gi, (match, url, label) => {
+        const lowerLabel = label.toLowerCase();
+        const lowerUrl = url.toLowerCase();
+        if (lowerLabel.includes('адрес') || lowerLabel.includes('address') || lowerUrl.includes('address')) {
+          return match;
+        }
+        if (docUrl && url.includes(docUrl.replace(/^\//, ''))) {
+          return match;
+        }
+        if (lowerLabel.includes('перейти к') && (lowerLabel.includes('адрес') || lowerLabel.includes('элемент'))) {
+          return match;
+        }
+        return `[url=${url}]████[/url]`;
+      });
+
+      return masked;
+    }
+
     function parseBBCode(text) {
       if (!text) return '';
       let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -772,7 +820,7 @@
             ${task.overdueDate ? `<span class="text-red-600">Дедлайн: <span class="font-medium">${formatDate(task.overdueDate)}</span></span>` : ''}
           </div>
 
-          ${task.description ? `<div class="text-xs text-gray-600 dark:text-gray-300 mb-2 leading-relaxed">${parseBBCode(task.description)}</div>` : ''}
+          ${task.description ? `<div class="text-xs text-gray-600 dark:text-gray-300 mb-2 leading-relaxed">${parseBBCode(maskDescription(task.description, task))}</div>` : ''}
           <div class="text-xs text-gray-400 dark:text-gray-500 mb-2">
             <span class="font-medium text-gray-600 dark:text-gray-300">${task.templateName || ''}</span>
             ${task.documentName ? ` • <a href="${docUrl}" target="_blank" class="text-ft-600 dark:text-ft-400 hover:underline">${task.documentName}</a>` : ''}
