@@ -523,9 +523,8 @@
     }
 
     // --- Configuration ---
-    // IMPORTANT: Replace this URL with your n8n webhook URL after importing the workflow
-    // Format: https://your-n8n-domain.com/webhook/bp-dashboard
-    const API_URL = 'https://YOUR_N8N_DOMAIN/webhook/bp-dashboard';
+    // n8n webhook URL for BP Tasks Dashboard API
+    const API_URL = 'https://n8n.ftel.kz/webhook/bp-dashboard';
 
     // --- Load & Render ---
     async function loadData(refresh = false) {
@@ -540,9 +539,7 @@
       btn.disabled = true;
 
       try {
-        if (API_URL.includes('YOUR_N8N_DOMAIN')) {
-          throw new Error('Укажите URL вашего n8n webhook в переменной API_URL в коде страницы');
-        }
+        
         const res = await fetch(API_URL);
         if (!res.ok) throw new Error(`Ошибка ${res.status}: ${await res.text()}`);
         dashboardData = await res.json();
