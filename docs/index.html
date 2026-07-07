@@ -1,67 +1,112 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" class="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Задания БП — Корпоративные продажи</title>
+  <title>Задания БП — Freedom Telecom</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23166534'/><text x='8' y='24' font-size='20' fill='white' font-family='Arial' font-weight='bold'>F</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            ft: {
+              50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac',
+              400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d',
+              800: '#166534', 900: '#14532d', 950: '#052e16'
+            }
+          }
+        }
+      }
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    .loader { border: 3px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; }
+    .loader { border: 3px solid #dcfce7; border-top-color: #16a34a; border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; }
+    .dark .loader { border-color: #1f2937; border-top-color: #4ade80; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .task-card { transition: all 0.2s; }
     .task-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .dark .task-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
     .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
-    .tab-active { border-bottom: 2px solid #3b82f6; color: #1d4ed8; font-weight: 600; }
+    .tab-active { border-bottom: 2px solid #16a34a; color: #15803d; font-weight: 600; }
+    .dark .tab-active { color: #4ade80; border-color: #4ade80; }
     .metric-card { transition: all 0.2s; }
     .metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+    .dark .metric-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 dark:bg-gray-950 min-h-screen font-sans text-gray-900 dark:text-gray-100 transition-colors duration-200">
   <!-- Login Screen -->
-  <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-    <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
+  <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-ft-50 to-ft-100 dark:from-gray-900 dark:to-gray-950">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-sm border border-ft-100 dark:border-gray-700">
       <div class="text-center mb-6">
-        <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        <div class="w-16 h-16 bg-ft-800 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <svg class="w-9 h-9" viewBox="0 0 32 32" fill="none">
+            <path d="M16 2L4 7v9c0 7.5 5.1 14.5 12 16 6.9-1.5 12-8.5 12-16V7L16 2z" fill="white" fill-opacity="0.2"/>
+            <path d="M16 4L6 8.2v7.8c0 6.5 4.3 12.6 10 14 5.7-1.4 10-7.5 10-14V8.2L16 4z" fill="white" fill-opacity="0.3"/>
+            <text x="10" y="23" font-size="16" fill="white" font-family="Inter,Arial" font-weight="800">F</text>
           </svg>
         </div>
-        <h2 class="text-xl font-bold text-gray-900">Дашборд БП</h2>
-        <p class="text-sm text-gray-500 mt-1">Введите пароль для доступа</p>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">Freedom Telecom</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Дашборд бизнес-процессов</p>
       </div>
       <form onsubmit="handleLogin(event)">
         <input type="password" id="loginPassword" placeholder="Пароль"
-          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-center text-lg tracking-widest"
+          class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-ft-500 focus:border-ft-500 outline-none text-center text-lg tracking-widest bg-white dark:bg-gray-700 dark:text-white"
           autocomplete="current-password" />
         <p id="loginError" class="text-red-500 text-sm mt-2 hidden text-center"></p>
         <button type="submit" id="loginBtn"
-          class="w-full mt-4 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50">
+          class="w-full mt-4 px-4 py-3 bg-ft-700 text-white rounded-lg font-medium hover:bg-ft-800 transition disabled:opacity-50">
           Войти
         </button>
       </form>
+      <button onclick="toggleDarkMode()" class="w-full mt-3 px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition">
+        Тёмная тема
+      </button>
     </div>
   </div>
 
   <!-- Main App (hidden until auth) -->
   <div id="mainApp" class="hidden">
-  <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-      <div>
-        <h1 class="text-xl font-bold text-gray-900">Активные задания БП</h1>
-        <p class="text-sm text-gray-500" id="subtitle">Загрузка...</p>
-      </div>
+  <header class="bg-ft-800 dark:bg-gray-900 border-b border-ft-900 dark:border-gray-800 sticky top-0 z-50 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div id="stats" class="text-right text-sm text-gray-600 hidden">
-          <div><span class="font-semibold" id="totalUsers">0</span> сотрудников</div>
-          <div><span class="font-semibold" id="totalTasks">0</span> заданий</div>
+        <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5" viewBox="0 0 32 32" fill="none">
+            <text x="8" y="24" font-size="18" fill="white" font-family="Inter,Arial" font-weight="800">F</text>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white">Активные задания БП</h1>
+          <p class="text-xs text-ft-200" id="subtitle">Загрузка...</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div id="stats" class="text-right text-xs text-ft-200 hidden mr-3">
+          <div><span class="font-semibold text-white" id="totalUsers">0</span> сотрудников</div>
+          <div><span class="font-semibold text-white" id="totalTasks">0</span> заданий</div>
         </div>
         <button onclick="loadData(true)" id="refreshBtn"
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50">
+          class="px-3 py-2 bg-ft-600 text-white rounded-lg text-sm font-medium hover:bg-ft-500 transition disabled:opacity-50 border border-ft-500">
           Обновить
         </button>
+        <button onclick="toggleDarkMode()" title="Тёмная/Светлая тема"
+          class="p-2 text-ft-200 hover:text-white transition rounded-lg hover:bg-white/10">
+          <svg id="themeIconSun" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          <svg id="themeIconMoon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+          </svg>
+        </button>
         <button onclick="logout()" title="Выйти"
-          class="p-2 text-gray-400 hover:text-red-500 transition">
+          class="p-2 text-ft-200 hover:text-red-300 transition rounded-lg hover:bg-white/10">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
           </svg>
@@ -71,21 +116,21 @@
     <!-- Tabs -->
     <div class="max-w-7xl mx-auto px-4 flex gap-6" id="tabsBar" style="display:none">
       <button class="py-2 text-sm tab-active" data-tab="dashboard" onclick="switchTab('dashboard')">Дашборд</button>
-      <button class="py-2 text-sm text-gray-500 hover:text-gray-700" data-tab="tasks" onclick="switchTab('tasks')">Задания</button>
+      <button class="py-2 text-sm text-ft-300 hover:text-white" data-tab="tasks" onclick="switchTab('tasks')">Задания</button>
     </div>
   </header>
 
   <main class="max-w-7xl mx-auto px-4 py-6">
     <div id="loading" class="flex flex-col items-center justify-center py-20">
       <div class="loader mb-4"></div>
-      <p class="text-gray-500">Загрузка данных из Bitrix24...</p>
-      <p class="text-gray-400 text-sm mt-1">Это может занять 1-2 минуты при первом запуске</p>
+      <p class="text-gray-500 dark:text-gray-400">Загрузка данных из Bitrix24...</p>
+      <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">Это может занять 1-2 минуты при первом запуске</p>
     </div>
 
-    <div id="error" class="hidden bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-      <p class="text-red-700 font-medium">Ошибка загрузки</p>
-      <p class="text-red-600 text-sm mt-1" id="errorText"></p>
-      <button onclick="loadData()" class="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm">Попробовать снова</button>
+    <div id="error" class="hidden bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+      <p class="text-red-700 dark:text-red-400 font-medium">Ошибка загрузки</p>
+      <p class="text-red-600 dark:text-red-400 text-sm mt-1" id="errorText"></p>
+      <button onclick="loadData()" class="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition">Попробовать снова</button>
     </div>
 
     <!-- Dashboard Tab -->
@@ -95,24 +140,24 @@
     <div id="tasksTab" class="hidden">
       <div class="flex flex-wrap gap-3 mb-4">
         <input type="text" id="searchInput" placeholder="Поиск по сотруднику или заданию..."
-          class="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
-        <select id="deptFilter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+          class="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-ft-500 focus:border-ft-500 outline-none bg-white dark:bg-gray-800 dark:text-gray-200" />
+        <select id="deptFilter" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-ft-500 outline-none">
           <option value="">Все отделы</option>
         </select>
-        <select id="templateFilter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+        <select id="templateFilter" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-ft-500 outline-none">
           <option value="">Все шаблоны БП</option>
         </select>
-        <select id="sortFilter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+        <select id="sortFilter" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-ft-500 outline-none">
           <option value="tasks_desc">По кол-ву заданий ↓</option>
           <option value="tasks_asc">По кол-ву заданий ↑</option>
           <option value="name_asc">По имени А→Я</option>
         </select>
-        <label class="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg text-sm cursor-pointer select-none hover:bg-gray-200 transition" title="Показать шаблон задания (маскировать конкретные данные)">
-          <input type="checkbox" id="templateMode" onchange="if(dashboardData)renderEmployees(dashboardData.employees)" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-          <span class="text-gray-700 font-medium">Шаблон</span>
+        <label class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-700 transition border border-gray-200 dark:border-gray-600" title="Показать шаблон задания (маскировать конкретные данные)">
+          <input type="checkbox" id="templateMode" onchange="if(dashboardData)renderEmployees(dashboardData.employees)" class="rounded border-gray-300 text-ft-600 focus:ring-ft-500" />
+          <span class="text-gray-700 dark:text-gray-300 font-medium">Шаблон</span>
           <span class="text-gray-400">████</span>
         </label>
-        <button onclick="exportCSV()" class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition" title="Экспорт в CSV">
+        <button onclick="exportCSV()" class="px-3 py-2 bg-ft-700 text-white rounded-lg text-sm font-medium hover:bg-ft-600 transition" title="Экспорт в CSV">
           CSV ↓
         </button>
       </div>
@@ -158,7 +203,7 @@
       let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       html = html.replace(/\[url=(.*?)\](.*?)\[\/url\]/gi, (_, url, label) => {
         const fullUrl = url.startsWith('http') ? url : bitrixUrl + url;
-        return `<a href="${fullUrl}" target="_blank" class="text-blue-600 hover:underline">${label}</a>`;
+        return `<a href="${fullUrl}" target="_blank" class="text-ft-600 dark:text-ft-400 hover:underline">${label}</a>`;
       });
       html = html.replace(/\[b\](.*?)\[\/b\]/gis, '<strong>$1</strong>');
       html = html.replace(/\[i\](.*?)\[\/i\]/gis, '<em>$1</em>');
@@ -329,11 +374,16 @@
       ];
 
       const colorMap = {
-        blue: 'bg-blue-50 border-blue-200', indigo: 'bg-indigo-50 border-indigo-200',
-        purple: 'bg-purple-50 border-purple-200', amber: 'bg-amber-50 border-amber-200',
-        red: 'bg-red-50 border-red-200', orange: 'bg-orange-50 border-orange-200',
-        green: 'bg-green-50 border-green-200', teal: 'bg-teal-50 border-teal-200',
-        rose: 'bg-rose-50 border-rose-200', cyan: 'bg-cyan-50 border-cyan-200'
+        blue: 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800',
+        indigo: 'bg-indigo-50 border-indigo-200 dark:bg-indigo-950/30 dark:border-indigo-800',
+        purple: 'bg-purple-50 border-purple-200 dark:bg-purple-950/30 dark:border-purple-800',
+        amber: 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800',
+        red: 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800',
+        orange: 'bg-orange-50 border-orange-200 dark:bg-orange-950/30 dark:border-orange-800',
+        green: 'bg-ft-50 border-ft-200 dark:bg-ft-950/30 dark:border-ft-800',
+        teal: 'bg-teal-50 border-teal-200 dark:bg-teal-950/30 dark:border-teal-800',
+        rose: 'bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800',
+        cyan: 'bg-cyan-50 border-cyan-200 dark:bg-cyan-950/30 dark:border-cyan-800'
       };
 
       let html = `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">`;
@@ -341,9 +391,9 @@
         html += `
           <div class="metric-card ${colorMap[card.color]} border rounded-xl p-4">
             <div class="text-2xl mb-1">${card.icon}</div>
-            <div class="text-2xl font-bold text-gray-900">${card.value}</div>
-            <div class="text-xs text-gray-600 mt-1">${card.label}</div>
-            ${card.subtitle ? `<div class="text-xs text-gray-400 mt-0.5 truncate">${card.subtitle}</div>` : ''}
+            <div class="text-2xl font-bold text-gray-900 dark:text-white">${card.value}</div>
+            <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">${card.label}</div>
+            ${card.subtitle ? `<div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">${card.subtitle}</div>` : ''}
           </div>
         `;
       }
@@ -351,14 +401,14 @@
 
       // Chart filters
       html += `
-        <div class="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6">
           <div class="flex flex-wrap items-center gap-3">
-            <span class="text-sm font-medium text-gray-700">Фильтры графиков:</span>
-            <select id="chartDeptFilter" onchange="renderCharts()" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Фильтры графиков:</span>
+            <select id="chartDeptFilter" onchange="renderCharts()" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-ft-500 outline-none">
               <option value="">Все отделы</option>
               ${dashboardData.subDepartments.map(d => `<option value="${d.name}">${d.name}</option>`).join('')}
             </select>
-            <select id="chartAgeFilter" onchange="renderCharts()" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+            <select id="chartAgeFilter" onchange="renderCharts()" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-ft-500 outline-none">
               <option value="all">Все задания</option>
               <option value="today">Создано сегодня</option>
               <option value="3d">Младше 3 дней</option>
@@ -366,7 +416,7 @@
               <option value="old">Старше 7 дней</option>
               <option value="overdue">Просроченные</option>
             </select>
-            <select id="chartTopN" onchange="renderCharts()" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+            <select id="chartTopN" onchange="renderCharts()" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-ft-500 outline-none">
               <option value="10">Топ 10</option>
               <option value="15">Топ 15</option>
               <option value="20">Топ 20</option>
@@ -379,44 +429,44 @@
       // Charts grid
       html += `
         <div class="grid md:grid-cols-2 gap-6 mb-6">
-          <div class="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 class="font-semibold text-gray-900 mb-3">Задания по сотрудникам</h3>
+          <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Задания по сотрудникам</h3>
             <div style="position:relative; height:300px;"><canvas id="chartEmployees"></canvas></div>
           </div>
-          <div class="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 class="font-semibold text-gray-900 mb-3">Распределение по шаблонам БП</h3>
+          <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Распределение по шаблонам БП</h3>
             <div style="position:relative; height:300px;"><canvas id="chartTemplates"></canvas></div>
           </div>
         </div>
         <div class="grid md:grid-cols-2 gap-6 mb-6">
-          <div class="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 class="font-semibold text-gray-900 mb-3">Нагрузка по отделам</h3>
+          <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Нагрузка по отделам</h3>
             <div style="position:relative; height:300px;"><canvas id="chartDepts"></canvas></div>
           </div>
-          <div class="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 class="font-semibold text-gray-900 mb-3">Возраст заданий (распределение)</h3>
+          <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Возраст заданий (распределение)</h3>
             <div style="position:relative; height:300px;"><canvas id="chartAge"></canvas></div>
           </div>
         </div>
         <div class="grid md:grid-cols-2 gap-6">
-          <div class="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 class="font-semibold text-gray-900 mb-3">Топ шаблонов БП</h3>
+          <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Топ шаблонов БП</h3>
             <div class="space-y-2">
               ${metrics.topTemplates.map(([name, count]) => `
                 <div class="flex items-center justify-between">
-                  <span class="text-sm text-gray-700 truncate mr-2">${name}</span>
-                  <span class="badge bg-blue-100 text-blue-700 shrink-0">${count}</span>
+                  <span class="text-sm text-gray-700 dark:text-gray-300 truncate mr-2">${name}</span>
+                  <span class="badge bg-ft-100 dark:bg-ft-900/30 text-ft-700 dark:text-ft-400 shrink-0">${count}</span>
                 </div>
               `).join('')}
             </div>
           </div>
-          <div class="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 class="font-semibold text-gray-900 mb-3">Нагрузка по отделам (список)</h3>
+          <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Нагрузка по отделам (список)</h3>
             <div class="space-y-2">
               ${metrics.topDepts.map(([name, count]) => `
                 <div class="flex items-center justify-between">
-                  <span class="text-sm text-gray-700 truncate mr-2">${name}</span>
-                  <span class="badge bg-indigo-100 text-indigo-700 shrink-0">${count} заданий</span>
+                  <span class="text-sm text-gray-700 dark:text-gray-300 truncate mr-2">${name}</span>
+                  <span class="badge bg-ft-100 dark:bg-ft-900/30 text-ft-700 dark:text-ft-400 shrink-0">${count} заданий</span>
                 </div>
               `).join('')}
             </div>
@@ -461,9 +511,9 @@
       const { employees, allTasks } = getFilteredTasks();
 
       const COLORS = [
-        '#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981',
-        '#06b6d4','#f97316','#6366f1','#14b8a6','#e11d48',
-        '#84cc16','#a855f7','#0ea5e9','#d946ef','#eab308'
+        '#16a34a','#15803d','#4ade80','#22c55e','#166534',
+        '#86efac','#059669','#10b981','#34d399','#047857',
+        '#6ee7b7','#065f46','#a7f3d0','#064e3b','#d1fae5'
       ];
 
       // 1. Tasks per employee (bar)
@@ -537,7 +587,7 @@
             datasets: [{
               label: 'Заданий',
               data: deptEntries.map(([, c]) => c),
-              backgroundColor: '#6366f1',
+              backgroundColor: '#16a34a',
               borderRadius: 4,
             }]
           },
@@ -564,7 +614,7 @@
         else buckets['> 30 дней']++;
       });
 
-      const bucketColors = ['#10b981', '#84cc16', '#f59e0b', '#f97316', '#ef4444', '#991b1b'];
+      const bucketColors = ['#4ade80', '#22c55e', '#f59e0b', '#f97316', '#ef4444', '#991b1b'];
       const ctx4 = document.getElementById('chartAge');
       if (ctx4) {
         chartInstances.age = new Chart(ctx4, {
@@ -698,26 +748,26 @@
     function renderEmployee(emp) {
       const tplMode = document.getElementById('templateMode')?.checked || false;
       const { user, tasks, tasksCount } = emp;
-      const countColor = tasksCount > 20 ? 'bg-red-100 text-red-700' :
-                         tasksCount > 5 ? 'bg-yellow-100 text-yellow-700' :
-                         tasksCount === 0 ? 'bg-gray-100 text-gray-500' :
-                         'bg-green-100 text-green-700';
+      const countColor = tasksCount > 20 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                         tasksCount > 5 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                         tasksCount === 0 ? 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' :
+                         'bg-ft-100 text-ft-700 dark:bg-ft-900/30 dark:text-ft-400';
 
       const displayName = tplMode ? '████████ ████████' : user.name;
       const initials = tplMode ? '██' : user.name.split(' ').map(w => w[0]).join('').slice(0, 2);
       const position = tplMode ? '████████████' : (user.position || user.departments.join(', '));
 
       return `
-        <div class="bg-white rounded-xl border ${tplMode ? 'border-dashed border-gray-300' : 'border-gray-200'} overflow-hidden">
-          <div class="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50"
+        <div class="bg-white dark:bg-gray-800 rounded-xl border ${tplMode ? 'border-dashed border-gray-300 dark:border-gray-600' : 'border-gray-200 dark:border-gray-700'} overflow-hidden">
+          <div class="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750"
                onclick="toggleEmployee(this)">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full ${tplMode ? 'bg-gray-200' : 'bg-blue-100'} flex items-center justify-center ${tplMode ? 'text-gray-500' : 'text-blue-700'} font-bold text-sm">
+              <div class="w-10 h-10 rounded-full ${tplMode ? 'bg-gray-200 dark:bg-gray-700' : 'bg-ft-100 dark:bg-ft-900/40'} flex items-center justify-center ${tplMode ? 'text-gray-500' : 'text-ft-700 dark:text-ft-400'} font-bold text-sm">
                 ${initials}
               </div>
               <div>
-                <div class="font-semibold text-gray-900">${displayName}</div>
-                <div class="text-xs text-gray-500">${position}</div>
+                <div class="font-semibold text-gray-900 dark:text-white">${displayName}</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">${position}</div>
               </div>
             </div>
             <div class="flex items-center gap-3">
@@ -727,7 +777,7 @@
               </svg>
             </div>
           </div>
-          <div class="tasks-list hidden border-t border-gray-100">
+          <div class="tasks-list hidden border-t border-gray-100 dark:border-gray-700">
             <div class="p-4 grid gap-3 md:grid-cols-2">
               ${tasks.map(t => renderTask(t)).join('')}
             </div>
@@ -751,11 +801,11 @@
       const ageDisplay = tplMode ? '██ д. ██ ч.' : (age !== null ? formatDuration(age) : '');
 
       return `
-        <div class="task-card ${tplMode ? 'bg-gray-100 border-dashed' : 'bg-gray-50'} rounded-lg p-4 border border-gray-100 ${tplMode ? 'relative' : ''}">
-          ${tplMode ? '<div class="absolute top-2 right-2 badge bg-gray-700 text-white text-[10px]">ШАБЛОН</div>' : ''}
+        <div class="task-card ${tplMode ? 'bg-gray-100 dark:bg-gray-900 border-dashed' : 'bg-gray-50 dark:bg-gray-900/50'} rounded-lg p-4 border border-gray-200 dark:border-gray-700 ${tplMode ? 'relative' : ''}">
+          ${tplMode ? '<div class="absolute top-2 right-2 badge bg-gray-700 dark:bg-gray-600 text-white text-[10px]">ШАБЛОН</div>' : ''}
           <div class="flex items-start justify-between mb-1">
-            <div class="font-medium text-sm text-gray-900">${task.name}</div>
-            ${!tplMode && docUrl ? `<a href="${docUrl}" target="_blank" class="ml-2 shrink-0 text-blue-500 hover:text-blue-700" title="Открыть документ в Bitrix24">
+            <div class="font-medium text-sm text-gray-900 dark:text-white">${task.name}</div>
+            ${!tplMode && docUrl ? `<a href="${docUrl}" target="_blank" class="ml-2 shrink-0 text-ft-600 dark:text-ft-400 hover:text-ft-700" title="Открыть документ в Bitrix24">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
             </a>` : ''}
           </div>
@@ -767,25 +817,25 @@
             ${task.overdueDate ? `<span class="${tplMode ? 'text-gray-500' : 'text-red-600'}">Дедлайн: <span class="font-medium">${deadlineDate}</span></span>` : ''}
           </div>
 
-          ${desc ? `<div class="text-xs text-gray-600 mb-2 leading-relaxed">${parseBBCode(desc)}</div>` : ''}
-          <div class="text-xs text-gray-400 mb-2">
-            <span class="font-medium text-gray-600">${task.templateName || ''}</span>
-            ${docName ? ` • ${tplMode ? `<span class="text-gray-400">${docName}</span>` : `<a href="${docUrl}" target="_blank" class="text-blue-500 hover:underline">${docName}</a>`}` : ''}
+          ${desc ? `<div class="text-xs text-gray-600 dark:text-gray-300 mb-2 leading-relaxed">${parseBBCode(desc)}</div>` : ''}
+          <div class="text-xs text-gray-400 dark:text-gray-500 mb-2">
+            <span class="font-medium text-gray-600 dark:text-gray-300">${task.templateName || ''}</span>
+            ${docName ? ` • ${tplMode ? `<span class="text-gray-400">${docName}</span>` : `<a href="${docUrl}" target="_blank" class="text-ft-600 dark:text-ft-400 hover:underline">${docName}</a>`}` : ''}
           </div>
           ${visibleFields.length > 0 ? `
-            <div class="mb-2 border-t border-gray-200 pt-2 mt-2">
-              <div class="text-xs font-semibold text-gray-700 mb-1.5">Поля для заполнения:</div>
+            <div class="mb-2 border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+              <div class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Поля для заполнения:</div>
               <div class="space-y-1.5">
                 ${visibleFields.map(f => {
                   const opts = getAvailableOptions(f);
                   return `
-                    <div class="text-xs bg-white rounded border ${f.required ? 'border-red-200' : 'border-gray-200'} px-3 py-2">
+                    <div class="text-xs bg-white dark:bg-gray-800 rounded border ${f.required ? 'border-red-200 dark:border-red-800' : 'border-gray-200 dark:border-gray-600'} px-3 py-2">
                       <div class="flex items-center justify-between">
-                        <span class="${f.required ? 'text-red-700 font-medium' : 'text-gray-800'}">${f.name}${f.required ? ' *' : ''}</span>
-                        <span class="badge bg-gray-100 text-gray-500 ml-2">${getFieldTypeLabel(f.type)}</span>
+                        <span class="${f.required ? 'text-red-700 dark:text-red-400 font-medium' : 'text-gray-800 dark:text-gray-200'}">${f.name}${f.required ? ' *' : ''}</span>
+                        <span class="badge bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 ml-2">${getFieldTypeLabel(f.type)}</span>
                       </div>
-                      ${f.description ? `<div class="text-gray-400 mt-0.5">${f.description}</div>` : ''}
-                      ${opts ? `<div class="mt-1"><span class="text-gray-400">Варианты: </span>${opts.map(o => `<span class="badge bg-indigo-50 text-indigo-600 mr-1">${o}</span>`).join('')}</div>` : ''}
+                      ${f.description ? `<div class="text-gray-400 dark:text-gray-500 mt-0.5">${f.description}</div>` : ''}
+                      ${opts ? `<div class="mt-1"><span class="text-gray-400 dark:text-gray-500">Варианты: </span>${opts.map(o => `<span class="badge bg-ft-50 dark:bg-ft-900/30 text-ft-700 dark:text-ft-400 mr-1">${o}</span>`).join('')}</div>` : ''}
                     </div>
                   `;
                 }).join('')}
@@ -794,7 +844,7 @@
           ` : ''}
           ${visibleButtons.length > 0 ? `
             <div class="flex flex-wrap gap-1 mt-2">
-              ${visibleButtons.map(b => `<span class="badge bg-blue-100 text-blue-700">${b.label}</span>`).join('')}
+              ${visibleButtons.map(b => `<span class="badge bg-ft-100 dark:bg-ft-900/30 text-ft-700 dark:text-ft-400">${b.label}</span>`).join('')}
             </div>
           ` : ''}
         </div>
@@ -874,6 +924,21 @@
     document.getElementById('sortFilter').addEventListener('change', () => {
       if (dashboardData) renderEmployees(dashboardData.employees);
     });
+
+    // --- Dark Mode ---
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      const isDark = html.classList.contains('dark');
+      html.classList.toggle('dark', !isDark);
+      localStorage.setItem('bp_theme', isDark ? 'light' : 'dark');
+    }
+
+    (function initTheme() {
+      const saved = localStorage.getItem('bp_theme');
+      if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
 
     // --- Auth ---
     const AUTH_KEY_STORAGE = 'bp_dashboard_auth';
