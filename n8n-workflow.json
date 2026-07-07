@@ -1,0 +1,86 @@
+{
+  "name": "BP Tasks Dashboard API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bp-dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "bp-dashboard-001"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const WEBHOOKS = [\n  'https://crm.ftel.kz/rest/8577/z87m4ks3hqoid0kq',\n  'https://crm.ftel.kz/rest/8577/6rrjcp2g8llhgnj8'\n];\nconst DEPT_NAME = 'Департамент по корпоративным продажам';\n\nlet webhookIdx = 0;\nfunction getWebhook() {\n  return WEBHOOKS[webhookIdx++ % WEBHOOKS.length];\n}\n\nasync function callBitrix(method, params = {}, retries = 3) {\n  const wh = getWebhook();\n  const res = await fetch(`${wh}/${method}`, {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify(params)\n  });\n  const data = await res.json();\n  if (data.error === 'QUERY_LIMIT_EXCEEDED' && retries > 0) {\n    await new Promise(r => setTimeout(r, 600));\n    return callBitrix(method, params, retries - 1);\n  }\n  return data;\n}\n\nasync function callBitrixAll(method, params = {}) {\n  let all = [], start = 0;\n  while (true) {\n    const data = await callBitrix(method, { ...params, start });\n    const result = data.result || [];\n    all.push(...result);\n    if (!data.total || all.length >= data.total) break;\n    start += 50;\n  }\n  return all;\n}\n\nasync function getAllSubDeptIds(parentId) {\n  const ids = [parentId];\n  const children = await callBitrixAll('department.get', { PARENT: parentId });\n  for (const dept of children) {\n    const childIds = await getAllSubDeptIds(Number(dept.ID));\n    ids.push(...childIds);\n  }\n  return ids;\n}\n\nasync function parallelBatch(items, fn, concurrency = 6) {\n  const results = [];\n  for (let i = 0; i < items.length; i += concurrency) {\n    const batch = items.slice(i, i + concurrency);\n    const batchResults = await Promise.all(batch.map(fn));\n    results.push(...batchResults);\n  }\n  return results;\n}\n\n// Load smart processes\nconst spData = await callBitrix('crm.type.list');\nconst smartProcessMap = {};\nfor (const t of (spData.result?.types || [])) {\n  smartProcessMap[`DYNAMIC_${t.entityTypeId}`] = t.title;\n}\n\n// Find department\nconst deptData = await callBitrix('department.get', { NAME: DEPT_NAME });\nif (!deptData.result || deptData.result.length === 0) {\n  return [{ json: { error: 'Department not found' } }];\n}\nconst rootDeptId = Number(deptData.result[0].ID);\n\n// Get all sub-departments\nconst allDeptIds = await getAllSubDeptIds(rootDeptId);\n\n// Get all departments for reference\nconst allDepts = await callBitrixAll('department.get', {});\nconst deptMap = {};\nfor (const d of allDepts) deptMap[d.ID] = d.NAME;\n\n// Get users (deduplicated)\nconst rawUsers = await callBitrixAll('user.get', {\n  filter: { UF_DEPARTMENT: allDeptIds, ACTIVE: true }\n});\nconst usersMap = new Map();\nfor (const u of rawUsers) usersMap.set(u.ID, u);\nconst users = [...usersMap.values()];\n\n// Fetch tasks in parallel\nconst dashboard = await parallelBatch(users, async (user) => {\n  const tasks = await callBitrixAll('bizproc.task.list', {\n    select: ['ID','NAME','DESCRIPTION','PARAMETERS','USER_ID','WORKFLOW_TEMPLATE_NAME','WORKFLOW_STATE','DOCUMENT_NAME','DOCUMENT_URL','MODIFIED','ACTIVITY','WORKFLOW_STARTED','OVERDUE_DATE'],\n    filter: { USER_ID: Number(user.ID), STATUS: 0 },\n    order: { ID: 'DESC' }\n  });\n\n  const userDepts = (user.UF_DEPARTMENT || [])\n    .filter(id => allDeptIds.includes(Number(id)))\n    .map(id => deptMap[id] || `Отдел #${id}`);\n\n  return {\n    user: {\n      id: user.ID,\n      name: `${user.LAST_NAME || ''} ${user.NAME || ''}`.trim(),\n      position: user.WORK_POSITION || '',\n      departments: userDepts\n    },\n    tasksCount: tasks.length,\n    tasks: tasks.map(t => {\n      const params = t.PARAMETERS || {};\n      const buttons = [];\n      for (const [k, v] of Object.entries(params)) {\n        if (k.endsWith('Label') && v) buttons.push({ key: k, label: v });\n      }\n      const fields = (params.Fields || []).map(f => ({\n        id: f.Id, name: f.Name, type: f.Type,\n        required: f.Required || false, multiple: f.Multiple || false,\n        description: f.Description || '', options: f.Options || null\n      }));\n      return {\n        id: t.ID, name: t.NAME, description: t.DESCRIPTION || '',\n        templateName: t.WORKFLOW_TEMPLATE_NAME, documentName: t.DOCUMENT_NAME,\n        documentUrl: t.DOCUMENT_URL, modified: t.MODIFIED,\n        workflowStarted: t.WORKFLOW_STARTED, overdueDate: t.OVERDUE_DATE,\n        state: t.WORKFLOW_STATE, activity: t.ACTIVITY, buttons, fields\n      };\n    })\n  };\n}, 6);\n\ndashboard.sort((a, b) => b.tasksCount - a.tasksCount);\n\nconst result = {\n  department: DEPT_NAME,\n  bitrixUrl: 'https://crm.ftel.kz',\n  smartProcesses: smartProcessMap,\n  subDepartments: allDeptIds.map(id => ({ id, name: deptMap[id] || `#${id}` })),\n  totalUsers: dashboard.length,\n  totalTasks: dashboard.reduce((s, u) => s + u.tasksCount, 0),\n  updatedAt: new Date().toISOString(),\n  employees: dashboard\n};\n\nreturn [{ json: result }];"
+      },
+      "id": "code-1",
+      "name": "Fetch BP Tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, OPTIONS"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-1",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch BP Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch BP Tasks": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

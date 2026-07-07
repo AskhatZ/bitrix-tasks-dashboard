@@ -1,0 +1,14 @@
+{
+  "name": "bitrix-tasks-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard для отображения активных заданий БП из Bitrix24",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "dotenv": "^16.4.0"
+  }
+}

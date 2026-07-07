@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Задания БП — Корпоративные продажи</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .loader { border: 3px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .task-card { transition: all 0.2s; }
+    .task-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+    .tab-active { border-bottom: 2px solid #3b82f6; color: #1d4ed8; font-weight: 600; }
+    .metric-card { transition: all 0.2s; }
+    .metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-gray-900">Активные задания БП</h1>
+        <p class="text-sm text-gray-500" id="subtitle">Загрузка...</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="stats" class="text-right text-sm text-gray-600 hidden">
+          <div><span class="font-semibold" id="totalUsers">0</span> сотрудников</div>
+          <div><span class="font-semibold" id="totalTasks">0</span> заданий</div>
+        </div>
+        <button onclick="loadData(true)" id="refreshBtn"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50">
+          Обновить
+        </button>
+      </div>
+    </div>
+    <!-- Tabs -->
+    <div class="max-w-7xl mx-auto px-4 flex gap-6" id="tabsBar" style="display:none">
+      <button class="py-2 text-sm tab-active" data-tab="dashboard" onclick="switchTab('dashboard')">Дашборд</button>
+      <button class="py-2 text-sm text-gray-500 hover:text-gray-700" data-tab="tasks" onclick="switchTab('tasks')">Задания</button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div id="loading" class="flex flex-col items-center justify-center py-20">
+      <div class="loader mb-4"></div>
+      <p class="text-gray-500">Загрузка данных из Bitrix24...</p>
+      <p class="text-gray-400 text-sm mt-1">Это может занять 1-2 минуты при первом запуске</p>
+    </div>
+
+    <div id="error" class="hidden bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+      <p class="text-red-700 font-medium">Ошибка загрузки</p>
+      <p class="text-red-600 text-sm mt-1" id="errorText"></p>
+      <button onclick="loadData()" class="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm">Попробовать снова</button>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <div id="dashboardTab" class="hidden"></div>
+
+    <!-- Tasks Tab -->
+    <div id="tasksTab" class="hidden">
+      <div class="flex flex-wrap gap-3 mb-4">
+        <input type="text" id="searchInput" placeholder="Поиск по сотруднику или заданию..."
+          class="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+        <select id="deptFilter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+          <option value="">Все отделы</option>
+        </select>
+        <select id="templateFilter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+          <option value="">Все шаблоны БП</option>
+        </select>
+        <select id="sortFilter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+          <option value="tasks_desc">По кол-ву заданий ↓</option>
+          <option value="tasks_asc">По кол-ву заданий ↑</option>
+          <option value="name_asc">По имени А→Я</option>
+        </select>
+        <button onclick="exportCSV()" class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition" title="Экспорт в CSV">
+          CSV ↓
+        </button>
+      </div>
+      <div id="content" class="space-y-4"></div>
+    </div>
+  </main>
+
+  <script>
+    let dashboardData = null;
+    let bitrixUrl = '';
+    let smartProcesses = {};
+    let currentTab = 'dashboard';
+
+    const FIELD_TYPE_LABELS = {
+      'string': 'Текст', 'text': 'Текст (многострочный)', 'int': 'Число', 'double': 'Дробное число',
+      'datetime': 'Дата и время', 'date': 'Дата', 'file': 'Файл', 'bool': 'Да/Нет',
+      'select': 'Список', 'user': 'Пользователь', 'UF:crm': 'Элемент CRM', 'E:ECrm': 'Элемент CRM',
+      'UF:date': 'Дата', 'UF:boolean': 'Да/Нет', 'UF:string': 'Текст', 'UF:double': 'Число',
+      'UF:integer': 'Число', 'UF:url': 'Ссылка', 'UF:money': 'Деньги', 'UF:address': 'Адрес',
+      'UF:file': 'Файл', 'UF:employee': 'Сотрудник', 'disk_file': 'Файл (диск)',
+    };
+
+    const CRM_ENTITY_LABELS = {
+      'LEAD': 'Лид', 'CONTACT': 'Контакт', 'COMPANY': 'Компания',
+      'DEAL': 'Сделка', 'SMART_INVOICE': 'Счёт',
+    };
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('[data-tab]').forEach(el => {
+        el.classList.toggle('tab-active', el.dataset.tab === tab);
+        el.classList.toggle('text-gray-500', el.dataset.tab !== tab);
+      });
+      document.getElementById('dashboardTab').classList.toggle('hidden', tab !== 'dashboard');
+      document.getElementById('tasksTab').classList.toggle('hidden', tab !== 'tasks');
+      if (tab === 'dashboard' && dashboardData) {
+        setTimeout(() => renderCharts(), 50);
+      }
+    }
+
+    function parseBBCode(text) {
+      if (!text) return '';
+      let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      html = html.replace(/\[url=(.*?)\](.*?)\[\/url\]/gi, (_, url, label) => {
+        const fullUrl = url.startsWith('http') ? url : bitrixUrl + url;
+        return `<a href="${fullUrl}" target="_blank" class="text-blue-600 hover:underline">${label}</a>`;
+      });
+      html = html.replace(/\[b\](.*?)\[\/b\]/gis, '<strong>$1</strong>');
+      html = html.replace(/\[i\](.*?)\[\/i\]/gis, '<em>$1</em>');
+      html = html.replace(/\[u\](.*?)\[\/u\]/gis, '<u>$1</u>');
+      html = html.replace(/\[s\](.*?)\[\/s\]/gis, '<del>$1</del>');
+      html = html.replace(/\[color=(.*?)\](.*?)\[\/color\]/gis, '<span style="color:$1">$2</span>');
+      html = html.replace(/\[size=(.*?)\](.*?)\[\/size\]/gis, '$2');
+      html = html.replace(/\n/g, '<br>');
+      return html;
+    }
+
+    function getFieldTypeLabel(type) {
+      return FIELD_TYPE_LABELS[type] || (type?.startsWith('UF:') ? type.replace('UF:', '') : type || 'Неизвестный');
+    }
+
+    function getAvailableOptions(field) {
+      if (!field.options) return null;
+      const available = [];
+      for (const [key, val] of Object.entries(field.options)) {
+        if (val === 'Y') {
+          const label = CRM_ENTITY_LABELS[key] || smartProcesses[key] || key;
+          available.push(label);
+        }
+      }
+      return available.length > 0 ? available : null;
+    }
+
+    function isExcludedField(field) {
+      const name = (field.name || '').toLowerCase().trim();
+      return name === 'пояснение' || name === 'комментарий';
+    }
+
+    function isExcludedButton(btn) {
+      const label = (btn.label || '').toLowerCase().trim();
+      return label === 'пояснение' || label === 'комментарий';
+    }
+
+    function formatDuration(ms) {
+      if (ms < 0) return '—';
+      const hours = Math.floor(ms / 3600000);
+      const days = Math.floor(hours / 24);
+      if (days > 0) return `${days} д. ${hours % 24} ч.`;
+      if (hours > 0) return `${hours} ч.`;
+      const mins = Math.floor(ms / 60000);
+      return `${mins} мин.`;
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '—';
+      return new Date(dateStr).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function getTaskAge(task) {
+      if (!task.workflowStarted) return null;
+      return Date.now() - new Date(task.workflowStarted).getTime();
+    }
+
+    // --- Metrics ---
+    function computeMetrics(data) {
+      const { employees, totalUsers, totalTasks } = data;
+      const allTasks = employees.flatMap(e => e.tasks);
+
+      const tasksWithAge = allTasks.filter(t => t.workflowStarted).map(t => ({
+        ...t,
+        ageMs: Date.now() - new Date(t.workflowStarted).getTime()
+      }));
+
+      const avgAge = tasksWithAge.length > 0
+        ? tasksWithAge.reduce((s, t) => s + t.ageMs, 0) / tasksWithAge.length : 0;
+
+      const maxAgeTask = tasksWithAge.sort((a, b) => b.ageMs - a.ageMs)[0];
+
+      const overdueTasks = allTasks.filter(t => t.overdueDate && new Date(t.overdueDate) < new Date());
+
+      const empWithTasks = employees.filter(e => e.tasksCount > 0);
+      const empWithoutTasks = employees.filter(e => e.tasksCount === 0);
+
+      const avgTasksPerEmp = empWithTasks.length > 0
+        ? empWithTasks.reduce((s, e) => s + e.tasksCount, 0) / empWithTasks.length : 0;
+
+      // Template distribution
+      const templateCount = {};
+      allTasks.forEach(t => {
+        const name = t.templateName || 'Без шаблона';
+        templateCount[name] = (templateCount[name] || 0) + 1;
+      });
+      const topTemplates = Object.entries(templateCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+      // Dept distribution
+      const deptTaskCount = {};
+      employees.forEach(e => {
+        const dept = e.user.departments[0] || 'Без отдела';
+        deptTaskCount[dept] = (deptTaskCount[dept] || 0) + e.tasksCount;
+      });
+      const topDepts = Object.entries(deptTaskCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+      // Tasks older than 7 days
+      const oldTasks = tasksWithAge.filter(t => t.ageMs > 7 * 24 * 3600000);
+
+      // Tasks created today
+      const today = new Date().toDateString();
+      const todayTasks = allTasks.filter(t => t.workflowStarted && new Date(t.workflowStarted).toDateString() === today);
+
+      return {
+        totalUsers,
+        totalTasks,
+        avgAge,
+        maxAgeTask,
+        overdueTasks: overdueTasks.length,
+        empWithTasks: empWithTasks.length,
+        empWithoutTasks: empWithoutTasks.length,
+        avgTasksPerEmp,
+        topTemplates,
+        topDepts,
+        oldTasks: oldTasks.length,
+        todayTasks: todayTasks.length
+      };
+    }
+
+    let chartInstances = {};
+
+    function destroyCharts() {
+      Object.values(chartInstances).forEach(c => c.destroy());
+      chartInstances = {};
+    }
+
+    function renderMetrics(metrics) {
+      destroyCharts();
+
+      const cards = [
+        { label: 'Всего заданий', value: metrics.totalTasks, icon: '📋', color: 'blue' },
+        { label: 'Сотрудников с заданиями', value: `${metrics.empWithTasks} / ${metrics.totalUsers}`, icon: '👥', color: 'indigo' },
+        { label: 'Среднее кол-во на сотрудника', value: metrics.avgTasksPerEmp.toFixed(1), icon: '📊', color: 'purple' },
+        { label: 'Среднее время в работе', value: formatDuration(metrics.avgAge), icon: '⏱️', color: 'amber' },
+        { label: 'Просроченные задания', value: metrics.overdueTasks, icon: '🚨', color: 'red' },
+        { label: 'Старше 7 дней', value: metrics.oldTasks, icon: '📅', color: 'orange' },
+        { label: 'Создано сегодня', value: metrics.todayTasks, icon: '🆕', color: 'green' },
+        { label: 'Свободных сотрудников', value: metrics.empWithoutTasks, icon: '✅', color: 'teal' },
+        { label: 'Самое старое задание', value: metrics.maxAgeTask ? formatDuration(metrics.maxAgeTask.ageMs) : '—', icon: '🏚️', color: 'rose', subtitle: metrics.maxAgeTask?.name?.slice(0, 40) },
+        { label: 'Уникальных шаблонов БП', value: metrics.topTemplates.length > 0 ? Object.keys(metrics.topTemplates).length : 0, icon: '🔄', color: 'cyan' },
+      ];
+
+      const colorMap = {
+        blue: 'bg-blue-50 border-blue-200', indigo: 'bg-indigo-50 border-indigo-200',
+        purple: 'bg-purple-50 border-purple-200', amber: 'bg-amber-50 border-amber-200',
+        red: 'bg-red-50 border-red-200', orange: 'bg-orange-50 border-orange-200',
+        green: 'bg-green-50 border-green-200', teal: 'bg-teal-50 border-teal-200',
+        rose: 'bg-rose-50 border-rose-200', cyan: 'bg-cyan-50 border-cyan-200'
+      };
+
+      let html = `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">`;
+      for (const card of cards) {
+        html += `
+          <div class="metric-card ${colorMap[card.color]} border rounded-xl p-4">
+            <div class="text-2xl mb-1">${card.icon}</div>
+            <div class="text-2xl font-bold text-gray-900">${card.value}</div>
+            <div class="text-xs text-gray-600 mt-1">${card.label}</div>
+            ${card.subtitle ? `<div class="text-xs text-gray-400 mt-0.5 truncate">${card.subtitle}</div>` : ''}
+          </div>
+        `;
+      }
+      html += `</div>`;
+
+      // Chart filters
+      html += `
+        <div class="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="text-sm font-medium text-gray-700">Фильтры графиков:</span>
+            <select id="chartDeptFilter" onchange="renderCharts()" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="">Все отделы</option>
+              ${dashboardData.subDepartments.map(d => `<option value="${d.name}">${d.name}</option>`).join('')}
+            </select>
+            <select id="chartAgeFilter" onchange="renderCharts()" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="all">Все задания</option>
+              <option value="today">Создано сегодня</option>
+              <option value="3d">Младше 3 дней</option>
+              <option value="7d">Младше 7 дней</option>
+              <option value="old">Старше 7 дней</option>
+              <option value="overdue">Просроченные</option>
+            </select>
+            <select id="chartTopN" onchange="renderCharts()" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="10">Топ 10</option>
+              <option value="15">Топ 15</option>
+              <option value="20">Топ 20</option>
+              <option value="50">Все</option>
+            </select>
+          </div>
+        </div>
+      `;
+
+      // Charts grid
+      html += `
+        <div class="grid md:grid-cols-2 gap-6 mb-6">
+          <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 class="font-semibold text-gray-900 mb-3">Задания по сотрудникам</h3>
+            <div style="position:relative; height:300px;"><canvas id="chartEmployees"></canvas></div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 class="font-semibold text-gray-900 mb-3">Распределение по шаблонам БП</h3>
+            <div style="position:relative; height:300px;"><canvas id="chartTemplates"></canvas></div>
+          </div>
+        </div>
+        <div class="grid md:grid-cols-2 gap-6 mb-6">
+          <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 class="font-semibold text-gray-900 mb-3">Нагрузка по отделам</h3>
+            <div style="position:relative; height:300px;"><canvas id="chartDepts"></canvas></div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 class="font-semibold text-gray-900 mb-3">Возраст заданий (распределение)</h3>
+            <div style="position:relative; height:300px;"><canvas id="chartAge"></canvas></div>
+          </div>
+        </div>
+        <div class="grid md:grid-cols-2 gap-6">
+          <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 class="font-semibold text-gray-900 mb-3">Топ шаблонов БП</h3>
+            <div class="space-y-2">
+              ${metrics.topTemplates.map(([name, count]) => `
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-gray-700 truncate mr-2">${name}</span>
+                  <span class="badge bg-blue-100 text-blue-700 shrink-0">${count}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 class="font-semibold text-gray-900 mb-3">Нагрузка по отделам (список)</h3>
+            <div class="space-y-2">
+              ${metrics.topDepts.map(([name, count]) => `
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-gray-700 truncate mr-2">${name}</span>
+                  <span class="badge bg-indigo-100 text-indigo-700 shrink-0">${count} заданий</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+
+      return html;
+    }
+
+    function getFilteredTasks() {
+      const deptFilter = document.getElementById('chartDeptFilter')?.value || '';
+      const ageFilter = document.getElementById('chartAgeFilter')?.value || 'all';
+      const now = Date.now();
+      const today = new Date().toDateString();
+
+      let employees = dashboardData.employees;
+      if (deptFilter) {
+        employees = employees.filter(e => e.user.departments.includes(deptFilter));
+      }
+
+      let allTasks = employees.flatMap(e => e.tasks.map(t => ({ ...t, userName: e.user.name, userDepts: e.user.departments })));
+
+      if (ageFilter === 'today') {
+        allTasks = allTasks.filter(t => t.workflowStarted && new Date(t.workflowStarted).toDateString() === today);
+      } else if (ageFilter === '3d') {
+        allTasks = allTasks.filter(t => t.workflowStarted && (now - new Date(t.workflowStarted).getTime()) < 3*24*3600000);
+      } else if (ageFilter === '7d') {
+        allTasks = allTasks.filter(t => t.workflowStarted && (now - new Date(t.workflowStarted).getTime()) < 7*24*3600000);
+      } else if (ageFilter === 'old') {
+        allTasks = allTasks.filter(t => t.workflowStarted && (now - new Date(t.workflowStarted).getTime()) > 7*24*3600000);
+      } else if (ageFilter === 'overdue') {
+        allTasks = allTasks.filter(t => t.overdueDate && new Date(t.overdueDate) < new Date());
+      }
+
+      return { employees, allTasks };
+    }
+
+    function renderCharts() {
+      destroyCharts();
+      const topN = parseInt(document.getElementById('chartTopN')?.value || '10');
+      const { employees, allTasks } = getFilteredTasks();
+
+      const COLORS = [
+        '#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981',
+        '#06b6d4','#f97316','#6366f1','#14b8a6','#e11d48',
+        '#84cc16','#a855f7','#0ea5e9','#d946ef','#eab308'
+      ];
+
+      // 1. Tasks per employee (bar)
+      const empData = employees
+        .filter(e => e.tasksCount > 0)
+        .sort((a, b) => b.tasksCount - a.tasksCount)
+        .slice(0, topN);
+
+      const ctx1 = document.getElementById('chartEmployees');
+      if (ctx1) {
+        chartInstances.emp = new Chart(ctx1, {
+          type: 'bar',
+          data: {
+            labels: empData.map(e => e.user.name.split(' ').slice(0, 2).join(' ')),
+            datasets: [{
+              label: 'Заданий',
+              data: empData.map(e => e.tasksCount),
+              backgroundColor: COLORS.slice(0, empData.length),
+              borderRadius: 4,
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true, grid: { display: false } }, y: { grid: { display: false } } }
+          }
+        });
+      }
+
+      // 2. Templates (doughnut)
+      const templateCount = {};
+      allTasks.forEach(t => {
+        const name = t.templateName || 'Без шаблона';
+        templateCount[name] = (templateCount[name] || 0) + 1;
+      });
+      const templateEntries = Object.entries(templateCount).sort((a, b) => b[1] - a[1]).slice(0, topN);
+
+      const ctx2 = document.getElementById('chartTemplates');
+      if (ctx2) {
+        chartInstances.tpl = new Chart(ctx2, {
+          type: 'doughnut',
+          data: {
+            labels: templateEntries.map(([n]) => n.length > 30 ? n.slice(0, 28) + '…' : n),
+            datasets: [{
+              data: templateEntries.map(([, c]) => c),
+              backgroundColor: COLORS.slice(0, templateEntries.length),
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } }
+          }
+        });
+      }
+
+      // 3. Departments (bar)
+      const deptCount = {};
+      employees.forEach(e => {
+        const dept = e.user.departments[0] || 'Без отдела';
+        deptCount[dept] = (deptCount[dept] || 0) + e.tasksCount;
+      });
+      const deptEntries = Object.entries(deptCount).filter(([,c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, topN);
+
+      const ctx3 = document.getElementById('chartDepts');
+      if (ctx3) {
+        chartInstances.dept = new Chart(ctx3, {
+          type: 'bar',
+          data: {
+            labels: deptEntries.map(([n]) => n.length > 20 ? n.slice(0, 18) + '…' : n),
+            datasets: [{
+              label: 'Заданий',
+              data: deptEntries.map(([, c]) => c),
+              backgroundColor: '#6366f1',
+              borderRadius: 4,
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#f3f4f6' } } }
+          }
+        });
+      }
+
+      // 4. Age distribution (bar - buckets)
+      const now = Date.now();
+      const buckets = { '< 1 дня': 0, '1-3 дня': 0, '3-7 дней': 0, '7-14 дней': 0, '14-30 дней': 0, '> 30 дней': 0 };
+      allTasks.forEach(t => {
+        if (!t.workflowStarted) return;
+        const age = now - new Date(t.workflowStarted).getTime();
+        const days = age / (24*3600000);
+        if (days < 1) buckets['< 1 дня']++;
+        else if (days < 3) buckets['1-3 дня']++;
+        else if (days < 7) buckets['3-7 дней']++;
+        else if (days < 14) buckets['7-14 дней']++;
+        else if (days < 30) buckets['14-30 дней']++;
+        else buckets['> 30 дней']++;
+      });
+
+      const bucketColors = ['#10b981', '#84cc16', '#f59e0b', '#f97316', '#ef4444', '#991b1b'];
+      const ctx4 = document.getElementById('chartAge');
+      if (ctx4) {
+        chartInstances.age = new Chart(ctx4, {
+          type: 'bar',
+          data: {
+            labels: Object.keys(buckets),
+            datasets: [{
+              label: 'Заданий',
+              data: Object.values(buckets),
+              backgroundColor: bucketColors,
+              borderRadius: 4,
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#f3f4f6' } } }
+          }
+        });
+      }
+    }
+
+    // --- Configuration ---
+    // IMPORTANT: Replace this URL with your n8n webhook URL after importing the workflow
+    // Format: https://your-n8n-domain.com/webhook/bp-dashboard
+    const API_URL = 'https://YOUR_N8N_DOMAIN/webhook/bp-dashboard';
+
+    // --- Load & Render ---
+    async function loadData(refresh = false) {
+      const loading = document.getElementById('loading');
+      const error = document.getElementById('error');
+      const btn = document.getElementById('refreshBtn');
+
+      loading.classList.remove('hidden');
+      document.getElementById('dashboardTab').classList.add('hidden');
+      document.getElementById('tasksTab').classList.add('hidden');
+      error.classList.add('hidden');
+      btn.disabled = true;
+
+      try {
+        if (API_URL.includes('YOUR_N8N_DOMAIN')) {
+          throw new Error('Укажите URL вашего n8n webhook в переменной API_URL в коде страницы');
+        }
+        const res = await fetch(API_URL);
+        if (!res.ok) throw new Error(`Ошибка ${res.status}: ${await res.text()}`);
+        dashboardData = await res.json();
+        bitrixUrl = dashboardData.bitrixUrl || '';
+        smartProcesses = dashboardData.smartProcesses || {};
+        renderAll();
+      } catch (err) {
+        loading.classList.add('hidden');
+        error.classList.remove('hidden');
+        document.getElementById('errorText').textContent = err.message;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function renderAll() {
+      const { department, subDepartments, totalUsers, totalTasks, updatedAt, employees } = dashboardData;
+
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('tabsBar').style.display = 'flex';
+      document.getElementById('stats').classList.remove('hidden');
+
+      document.getElementById('subtitle').textContent =
+        `${department} • Обновлено: ${new Date(updatedAt).toLocaleString('ru-RU')}`;
+      document.getElementById('totalUsers').textContent = totalUsers;
+      document.getElementById('totalTasks').textContent = totalTasks;
+
+      // Dept filter
+      const deptSelect = document.getElementById('deptFilter');
+      deptSelect.innerHTML = '<option value="">Все отделы</option>';
+      subDepartments.forEach(d => {
+        deptSelect.innerHTML += `<option value="${d.name}">${d.name}</option>`;
+      });
+
+      // Template filter
+      const allTemplates = new Set();
+      employees.forEach(e => e.tasks.forEach(t => { if (t.templateName) allTemplates.add(t.templateName); }));
+      const tplSelect = document.getElementById('templateFilter');
+      tplSelect.innerHTML = '<option value="">Все шаблоны БП</option>';
+      [...allTemplates].sort().forEach(name => {
+        tplSelect.innerHTML += `<option value="${name}">${name}</option>`;
+      });
+
+      // Render dashboard metrics
+      const metrics = computeMetrics(dashboardData);
+      document.getElementById('dashboardTab').innerHTML = renderMetrics(metrics);
+
+      // Render charts after DOM is ready
+      setTimeout(() => renderCharts(), 50);
+
+      // Render tasks
+      renderEmployees(employees);
+
+      switchTab(currentTab);
+    }
+
+    function renderEmployees(employees) {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const deptFilter = document.getElementById('deptFilter').value;
+      const templateFilter = document.getElementById('templateFilter').value;
+      const sort = document.getElementById('sortFilter').value;
+
+      let filtered = employees.map(emp => {
+        let tasks = emp.tasks;
+        if (templateFilter) {
+          tasks = tasks.filter(t => t.templateName === templateFilter);
+        }
+        return { ...emp, tasks, tasksCount: tasks.length };
+      });
+
+      filtered = filtered.filter(emp => {
+        const matchSearch = !search ||
+          emp.user.name.toLowerCase().includes(search) ||
+          emp.tasks.some(t => t.name.toLowerCase().includes(search) || t.templateName?.toLowerCase().includes(search));
+        const matchDept = !deptFilter || emp.user.departments.includes(deptFilter);
+        const hasTasks = templateFilter ? emp.tasksCount > 0 : true;
+        return matchSearch && matchDept && hasTasks;
+      });
+
+      if (sort === 'tasks_desc') filtered.sort((a, b) => b.tasksCount - a.tasksCount);
+      else if (sort === 'tasks_asc') filtered.sort((a, b) => a.tasksCount - b.tasksCount);
+      else if (sort === 'name_asc') filtered.sort((a, b) => a.user.name.localeCompare(b.user.name));
+
+      const content = document.getElementById('content');
+      content.innerHTML = filtered.map(emp => renderEmployee(emp)).join('');
+    }
+
+    function renderEmployee(emp) {
+      const { user, tasks, tasksCount } = emp;
+      const countColor = tasksCount > 20 ? 'bg-red-100 text-red-700' :
+                         tasksCount > 5 ? 'bg-yellow-100 text-yellow-700' :
+                         tasksCount === 0 ? 'bg-gray-100 text-gray-500' :
+                         'bg-green-100 text-green-700';
+
+      return `
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div class="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50"
+               onclick="toggleEmployee(this)">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+                ${user.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+              </div>
+              <div>
+                <div class="font-semibold text-gray-900">${user.name}</div>
+                <div class="text-xs text-gray-500">${user.position || user.departments.join(', ')}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="badge ${countColor}">${tasksCount} ${pluralTasks(tasksCount)}</span>
+              <svg class="w-5 h-5 text-gray-400 transition-transform arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </div>
+          </div>
+          <div class="tasks-list hidden border-t border-gray-100">
+            <div class="p-4 grid gap-3 md:grid-cols-2">
+              ${tasks.map(t => renderTask(t)).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTask(task) {
+      const visibleFields = task.fields.filter(f => !isExcludedField(f));
+      const visibleButtons = task.buttons.filter(b => !isExcludedButton(b));
+      const docUrl = task.documentUrl ? (task.documentUrl.startsWith('http') ? task.documentUrl : bitrixUrl + task.documentUrl) : '';
+      const age = getTaskAge(task);
+      const ageColor = age && age > 7*24*3600000 ? 'text-red-600' : age && age > 3*24*3600000 ? 'text-amber-600' : 'text-gray-500';
+
+      return `
+        <div class="task-card bg-gray-50 rounded-lg p-4 border border-gray-100">
+          <div class="flex items-start justify-between mb-1">
+            <div class="font-medium text-sm text-gray-900">${task.name}</div>
+            ${docUrl ? `<a href="${docUrl}" target="_blank" class="ml-2 shrink-0 text-blue-500 hover:text-blue-700" title="Открыть документ в Bitrix24">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </a>` : ''}
+          </div>
+
+          <!-- Время -->
+          <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-2">
+            ${task.workflowStarted ? `<span class="text-gray-500">Старт: <span class="font-medium">${formatDate(task.workflowStarted)}</span></span>` : ''}
+            ${age !== null ? `<span class="${ageColor}">В работе: <span class="font-medium">${formatDuration(age)}</span></span>` : ''}
+            ${task.overdueDate ? `<span class="text-red-600">Дедлайн: <span class="font-medium">${formatDate(task.overdueDate)}</span></span>` : ''}
+          </div>
+
+          ${task.description ? `<div class="text-xs text-gray-600 mb-2 leading-relaxed">${parseBBCode(task.description)}</div>` : ''}
+          <div class="text-xs text-gray-400 mb-2">
+            <span class="font-medium text-gray-600">${task.templateName || ''}</span>
+            ${task.documentName ? ` • <a href="${docUrl}" target="_blank" class="text-blue-500 hover:underline">${task.documentName}</a>` : ''}
+          </div>
+          ${visibleFields.length > 0 ? `
+            <div class="mb-2 border-t border-gray-200 pt-2 mt-2">
+              <div class="text-xs font-semibold text-gray-700 mb-1.5">Поля для заполнения:</div>
+              <div class="space-y-1.5">
+                ${visibleFields.map(f => {
+                  const opts = getAvailableOptions(f);
+                  return `
+                    <div class="text-xs bg-white rounded border ${f.required ? 'border-red-200' : 'border-gray-200'} px-3 py-2">
+                      <div class="flex items-center justify-between">
+                        <span class="${f.required ? 'text-red-700 font-medium' : 'text-gray-800'}">${f.name}${f.required ? ' *' : ''}</span>
+                        <span class="badge bg-gray-100 text-gray-500 ml-2">${getFieldTypeLabel(f.type)}</span>
+                      </div>
+                      ${f.description ? `<div class="text-gray-400 mt-0.5">${f.description}</div>` : ''}
+                      ${opts ? `<div class="mt-1"><span class="text-gray-400">Варианты: </span>${opts.map(o => `<span class="badge bg-indigo-50 text-indigo-600 mr-1">${o}</span>`).join('')}</div>` : ''}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          ` : ''}
+          ${visibleButtons.length > 0 ? `
+            <div class="flex flex-wrap gap-1 mt-2">
+              ${visibleButtons.map(b => `<span class="badge bg-blue-100 text-blue-700">${b.label}</span>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function toggleEmployee(el) {
+      const list = el.nextElementSibling;
+      const arrow = el.querySelector('.arrow');
+      list.classList.toggle('hidden');
+      arrow.style.transform = list.classList.contains('hidden') ? '' : 'rotate(180deg)';
+    }
+
+    function pluralTasks(n) {
+      const mod = n % 10;
+      const mod100 = n % 100;
+      if (mod === 1 && mod100 !== 11) return 'задание';
+      if (mod >= 2 && mod <= 4 && (mod100 < 12 || mod100 > 14)) return 'задания';
+      return 'заданий';
+    }
+
+    // --- Export CSV ---
+    function exportCSV() {
+      if (!dashboardData) return;
+      const rows = [['Сотрудник', 'Отдел', 'Задание', 'Шаблон БП', 'Документ', 'Дата старта', 'В работе (дни)', 'Дедлайн', 'Ссылка на документ']];
+      const now = Date.now();
+      dashboardData.employees.forEach(emp => {
+        emp.tasks.forEach(t => {
+          const ageDays = t.workflowStarted ? ((now - new Date(t.workflowStarted).getTime()) / 86400000).toFixed(1) : '';
+          const docUrl = t.documentUrl ? (t.documentUrl.startsWith('http') ? t.documentUrl : bitrixUrl + t.documentUrl) : '';
+          rows.push([
+            emp.user.name,
+            emp.user.departments.join('; '),
+            t.name,
+            t.templateName || '',
+            t.documentName || '',
+            t.workflowStarted ? new Date(t.workflowStarted).toLocaleDateString('ru-RU') : '',
+            ageDays,
+            t.overdueDate ? new Date(t.overdueDate).toLocaleDateString('ru-RU') : '',
+            docUrl
+          ]);
+        });
+      });
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `bp_tasks_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+    }
+
+    // --- Auto refresh ---
+    const AUTO_REFRESH_MS = 5 * 60 * 1000;
+    let autoRefreshTimer = null;
+
+    function startAutoRefresh() {
+      stopAutoRefresh();
+      autoRefreshTimer = setInterval(() => {
+        loadData(true);
+      }, AUTO_REFRESH_MS);
+    }
+
+    function stopAutoRefresh() {
+      if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    }
+
+    // --- Event listeners ---
+    document.getElementById('searchInput').addEventListener('input', () => {
+      if (dashboardData) renderEmployees(dashboardData.employees);
+    });
+    document.getElementById('deptFilter').addEventListener('change', () => {
+      if (dashboardData) renderEmployees(dashboardData.employees);
+    });
+    document.getElementById('templateFilter').addEventListener('change', () => {
+      if (dashboardData) renderEmployees(dashboardData.employees);
+    });
+    document.getElementById('sortFilter').addEventListener('change', () => {
+      if (dashboardData) renderEmployees(dashboardData.employees);
+    });
+
+    loadData();
+    startAutoRefresh();
+  </script>
+</body>
+</html>
