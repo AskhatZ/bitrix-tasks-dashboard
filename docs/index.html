@@ -705,9 +705,13 @@
         const url = token ? `${API_URL}?token=${encodeURIComponent(token)}` : API_URL;
         const res = await fetch(url);
         if (res.status === 401 || res.status === 403) {
-          sessionStorage.removeItem(AUTH_KEY_STORAGE);
-          sessionStorage.setItem('bp_login_error', 'Неверный пароль');
-          location.reload();
+          removeAuthToken();
+          document.getElementById('loading').classList.add('hidden');
+          document.getElementById('mainApp').classList.add('hidden');
+          document.getElementById('loginScreen').classList.remove('hidden');
+          const errEl = document.getElementById('loginError');
+          errEl.textContent = 'Неверный пароль';
+          errEl.classList.remove('hidden');
           return;
         }
         if (!res.ok) throw new Error(`Ошибка ${res.status}: ${await res.text()}`);
@@ -980,9 +984,25 @@
 
     // --- Auth ---
     const AUTH_KEY_STORAGE = 'bp_dashboard_auth';
+    let _memoryToken = '';
+
+    function storageAvailable() {
+      try { sessionStorage.setItem('__test', '1'); sessionStorage.removeItem('__test'); return true; } catch(e) { return false; }
+    }
 
     function getAuthToken() {
-      return sessionStorage.getItem(AUTH_KEY_STORAGE) || '';
+      if (storageAvailable()) return sessionStorage.getItem(AUTH_KEY_STORAGE) || _memoryToken;
+      return _memoryToken;
+    }
+
+    function setAuthToken(val) {
+      _memoryToken = val;
+      try { sessionStorage.setItem(AUTH_KEY_STORAGE, val); } catch(e) {}
+    }
+
+    function removeAuthToken() {
+      _memoryToken = '';
+      try { sessionStorage.removeItem(AUTH_KEY_STORAGE); } catch(e) {}
     }
 
     function handleLogin(e) {
@@ -997,7 +1017,7 @@
       }
 
       errEl.classList.add('hidden');
-      sessionStorage.setItem(AUTH_KEY_STORAGE, pwd);
+      setAuthToken(pwd);
       showMainApp();
       loadData();
       startAutoRefresh();
@@ -1009,20 +1029,11 @@
     }
 
     function logout() {
-      sessionStorage.removeItem(AUTH_KEY_STORAGE);
-      location.reload();
+      removeAuthToken();
+      document.getElementById('mainApp').classList.add('hidden');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('loginPassword').value = '';
     }
-
-    // Show login error if redirected after wrong password
-    (function checkLoginError() {
-      const err = sessionStorage.getItem('bp_login_error');
-      if (err) {
-        sessionStorage.removeItem('bp_login_error');
-        const errEl = document.getElementById('loginError');
-        errEl.textContent = err;
-        errEl.classList.remove('hidden');
-      }
-    })();
 
     // Auto-login if token exists in session
     if (getAuthToken()) {
@@ -1072,13 +1083,6 @@
         pulling = false;
       }, { passive: true });
 
-      // Disable zoom on double-tap for iOS
-      let lastTouchEnd = 0;
-      document.addEventListener('touchend', (e) => {
-        const now = Date.now();
-        if (now - lastTouchEnd <= 300) { e.preventDefault(); }
-        lastTouchEnd = now;
-      }, false);
     })();
   </script>
   </div><!-- /mainApp -->
