@@ -1,64 +1,95 @@
 # BP Tasks Dashboard
 
-Дашборд активных заданий бизнес-процессов из Bitrix24 для департамента корпоративных продаж.
+Дашборд активных заданий бизнес-процессов Bitrix24. Показывает все текущие задания по сотрудникам выбранного департамента с аналитикой.
+
+## Что умеет
+
+- Список всех активных заданий БП по сотрудникам
+- Поля для заполнения (типы, варианты, обязательность)
+- Дашборд с 10 метриками + 4 интерактивных графика
+- Фильтры: по отделу, шаблону БП, поиск, сортировка
+- Экспорт в CSV
+- Тёмная тема
+- Автообновление каждые 5 минут
+- Авторизация (пароль)
 
 ## Архитектура
 
 ```
-[GitHub Pages / Netlify]  →  [n8n Webhook]  →  [Bitrix24 REST API]
-     фронтенд (HTML)           бэкенд              данные
+[Любой хостинг]  →  [n8n Webhook]  →  [Bitrix24 REST API]
+  index.html           бэкенд              данные
 ```
 
-## Деплой
+## Быстрый деплой (15 минут)
 
-### Шаг 1: n8n (бэкенд)
+### 1. n8n (бэкенд)
 
-1. Откройте ваш n8n
-2. Нажмите **Import workflow** (или Ctrl+O)
-3. Импортируйте файл `n8n-workflow.json`
-4. **Активируйте** workflow (тогл в правом верхнем углу)
-5. Скопируйте URL вебхука — он будет вида:
-   ```
-   https://ваш-n8n.com/webhook/bp-dashboard
-   ```
-
-> Важно: в n8n Settings → убедитесь что Execution Timeout достаточный (минимум 60 секунд), т.к. загрузка данных из Bitrix занимает ~25 сек.
-
-### Шаг 2: Фронтенд (GitHub Pages)
-
-1. Создайте репозиторий на GitHub
-2. Запушьте папку `docs/` в репозиторий
-3. В настройках репозитория: **Settings → Pages → Source: Deploy from branch → Branch: main, /docs**
-4. **Отредактируйте** `docs/index.html` — замените `YOUR_N8N_DOMAIN` на реальный URL:
+1. Откройте n8n → **Import workflow** → загрузите `n8n-workflow.json`
+2. Откройте ноду **"Auth Check"** → измените пароль:
    ```javascript
-   const API_URL = 'https://ваш-n8n.com/webhook/bp-dashboard';
+   const AUTH_TOKEN = 'ВашПароль123';
    ```
-5. Через ~1 мин сайт будет доступен по адресу `https://username.github.io/repo-name/`
+3. Откройте ноду **"Fetch BP Tasks"** → измените:
+   ```javascript
+   const WEBHOOKS = [
+     'https://ваш-битрикс.ru/rest/USER_ID/WEBHOOK_CODE'
+   ];
+   const DEPT_NAME = 'Название вашего департамента';
+   ```
+4. **Активируйте** workflow (тогл справа вверху)
+5. Запомните URL вебхука: `https://ваш-n8n.com/webhook/bp-dashboard`
 
-### Альтернатива: Netlify
+> **Важно:** В n8n Settings установите Execution Timeout ≥ 120 секунд.
 
-1. Зайдите на [netlify.com](https://netlify.com)
-2. Drag & drop папку `docs/` на страницу деплоя
-3. Готово — получите URL вида `https://random-name.netlify.app`
+### 2. Фронтенд (index.html)
 
-## Локальная разработка
+Откройте `docs/index.html` и замените URL на строке ~560:
 
-```bash
-npm install
-npm start
-# Открыть http://localhost:3000
+```javascript
+const API_URL = 'https://ваш-n8n.com/webhook/bp-dashboard';
 ```
+
+### 3. Разместите index.html
+
+Варианты:
+
+| Способ | Как |
+|--------|-----|
+| **Свой сервер (nginx)** | Скопируйте `docs/index.html` в `/var/www/html/` |
+| **GitHub Pages** | Push в репу → Settings → Pages → /docs |
+| **Netlify** | Drag & drop папку `docs/` на netlify.com |
+| **Просто открыть** | Двойной клик на `index.html` (работает локально) |
+
+## Требования
+
+- **n8n** — любая версия (self-hosted или cloud)
+- **Bitrix24** — REST webhook с правами: `department`, `user`, `bizproc`, `crm.type`
+- **Хостинг** — любой, способный отдать 1 HTML-файл (или просто браузер)
+
+## Как получить Bitrix24 webhook
+
+1. Bitrix24 → Приложения → Разработчикам → Другое → Входящий вебхук
+2. Установите права: `department`, `user`, `bizproc`, `crm.type`
+3. Скопируйте URL вида `https://your.bitrix24.ru/rest/1/abc123xyz/`
 
 ## Файлы
 
 | Файл | Назначение |
 |------|-----------|
 | `n8n-workflow.json` | Workflow для импорта в n8n (бэкенд) |
-| `docs/index.html` | Фронтенд для GitHub Pages / Netlify |
-| `server.js` | Локальный Express-сервер (для разработки) |
-| `public/index.html` | Фронтенд для локальной версии |
+| `docs/index.html` | Фронтенд (единственный файл для деплоя) |
+| `server.js` | Express-сервер для локальной разработки |
 
-## Настройки
+## FAQ
 
-Вебхуки Bitrix24 захардкожены в n8n workflow (нода "Fetch BP Tasks").
-Чтобы изменить — откройте workflow в n8n и отредактируйте массив `WEBHOOKS` в Code ноде.
+**Q: Долго грузится?**
+A: Первый запуск ~15-30 сек (зависит от кол-ва сотрудников). Данные не кешируются.
+
+**Q: Можно добавить второй webhook Bitrix для ускорения?**
+A: Да, просто добавьте второй URL в массив `WEBHOOKS` в Code ноде.
+
+**Q: Как сменить пароль?**
+A: В n8n откройте ноду "Auth Check" → измените `AUTH_TOKEN`.
+
+**Q: Code нода падает с ошибкой `fetch is not defined`?**
+A: Убедитесь что Code нода имеет `typeVersion: 1` (не 2). Версия 2 использует sandbox без HTTP.
